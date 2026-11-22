@@ -1,10 +1,1683 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  </head>
-  <body>
-    test
-  </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Me Before You — Interactive Languages Breakout</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Fredoka (playful Genially Breakout headers), Playfair Display (storybook letter), Inter (crisp UI) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --gold: #f59e0b;
+            --gold-bright: #fbbf24;
+            --navy: #0f172a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b1120;
+            color: #f8fafc;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .font-breakout {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        .font-serif-story {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* ==========================================
+           DYNAMIC SVG SCENIC BACKGROUNDS
+           ========================================== */
+        #scene-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background-size: cover;
+            background-position: center;
+            transition: opacity 0.6s ease-in-out, transform 1s ease-out;
+        }
+
+        #scene-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: radial-gradient(circle at 50% 25%, rgba(15, 23, 42, 0.45) 0%, rgba(9, 13, 24, 0.92) 100%);
+            backdrop-filter: blur(2px);
+        }
+
+        /* Genially Breakout Tactile Card Styling */
+        .breakout-card {
+            background: rgba(15, 23, 42, 0.86);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 2px solid rgba(251, 191, 36, 0.35);
+            box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.8), 0 0 25px rgba(251, 191, 36, 0.08);
+        }
+
+        .btn-3d-gold {
+            background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 100%);
+            color: #0f172a;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            border-bottom: 4px solid #b45309;
+            transition: transform 0.1s ease, filter 0.15s ease;
+        }
+
+        .btn-3d-gold:active {
+            transform: translateY(2px);
+            border-bottom-width: 2px;
+        }
+
+        .btn-3d-emerald {
+            background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+            color: #064e3b;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            border-bottom: 4px solid #047857;
+            transition: transform 0.1s ease;
+        }
+
+        .btn-3d-emerald:active {
+            transform: translateY(2px);
+            border-bottom-width: 2px;
+        }
+
+        /* Screen transitions */
+        .screen {
+            display: none;
+            animation: popIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: translateY(12px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+
+        .shake-error {
+            animation: shake 0.35s ease-in-out;
+            border-color: #ef4444 !important;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.5); }
+            50% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
+        }
+
+        .pulse-badge {
+            animation: pulseGlow 2.2s infinite;
+        }
+
+        /* ==========================================
+           STORY MAP PATH CONNECTOR
+           ========================================== */
+        .map-connector {
+            position: relative;
+        }
+        .map-connector::before {
+            content: '';
+            position: absolute;
+            left: 27px;
+            top: 24px;
+            bottom: 24px;
+            width: 3px;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(251, 191, 36, 0.55) 0px,
+                rgba(251, 191, 36, 0.55) 6px,
+                transparent 6px,
+                transparent 12px
+            );
+            z-index: 0;
+        }
+
+        /* ==========================================
+           MECHANIC 1: 3x3 SLIDING TILE PUZZLE
+           ========================================== */
+        .puzzle-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            width: 100%;
+            max-width: 246px;
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+            background: #090d16;
+            padding: 6px;
+            border-radius: 16px;
+            border: 2px solid rgba(251, 191, 36, 0.45);
+            touch-action: manipulation;
+        }
+
+        .puzzle-tile {
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+            user-select: none;
+            border: 1.5px solid rgba(255, 255, 255, 0.18);
+            overflow: hidden;
+            position: relative;
+            background-color: #1e293b;
+        }
+
+        .puzzle-tile canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            pointer-events: none;
+        }
+
+        .puzzle-tile.empty-slot {
+            background: rgba(15, 23, 42, 0.55) !important;
+            border: 1.5px dashed rgba(251, 191, 36, 0.35);
+            cursor: default;
+        }
+
+        .puzzle-tile.movable {
+            border-color: rgba(251, 191, 36, 0.85);
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.35);
+        }
+
+        .puzzle-tile.movable:hover,
+        .puzzle-tile.movable:active {
+            transform: scale(0.95);
+            box-shadow: 0 0 14px rgba(251, 191, 36, 0.65);
+        }
+
+        /* ==========================================
+           MASTER LOCK 4-COLUMN GRID FIX
+           ========================================== */
+        .master-code-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            width: 100%;
+            max-width: 280px;
+            margin: 0 auto 14px auto;
+            box-sizing: border-box;
+        }
+
+        .master-code-box {
+            width: 100%;
+            min-width: 0;
+            height: 60px;
+            box-sizing: border-box;
+        }
+
+        /* ==========================================
+           MECHANIC 2: FLASHLIGHT IN THE DARK
+           ========================================== */
+        #flashlight-stage {
+            position: relative;
+            width: 100%;
+            height: 215px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #060911;
+            border: 2px solid rgba(251, 191, 36, 0.45);
+            touch-action: none; /* Prevents vertical scrolling while dragging spotlight */
+            cursor: crosshair;
+            user-select: none;
+        }
+
+        #flashlight-mask {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle 68px at 50% 50%, transparent 0%, rgba(3, 5, 10, 0.985) 85%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* ==========================================
+           MECHANIC 3: CRYPTEX COMBINATION DIALS
+           ========================================== */
+        .cryptex-dial {
+            background: linear-gradient(180deg, #090d16 0%, #1e293b 50%, #090d16 100%);
+            border: 2px solid rgba(251, 191, 36, 0.55);
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.85);
+        }
+
+        /* ==========================================
+           MECHANIC 4: SCRATCH-OFF GOLD FOIL SEAL
+           ========================================== */
+        #scratch-wrapper {
+            position: relative;
+            width: 100%;
+            height: 165px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2px solid rgba(251, 191, 36, 0.55);
+            touch-action: none; /* Prevents vertical scrolling while scratching */
+            user-select: none;
+        }
+
+        #scratch-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            cursor: pointer;
+        }
+
+        /* Vintage Letter Paper */
+        .parchment-letter {
+            background-color: #fdfaf2;
+            color: #1e293b;
+            background-image: radial-gradient(#dfd5c0 0.65px, transparent 0.65px);
+            background-size: 16px 16px;
+        }
+
+        /* Confetti particle */
+        .confetti-piece {
+            position: fixed;
+            width: 9px;
+            height: 9px;
+            border-radius: 2px;
+            z-index: 999;
+            pointer-events: none;
+            animation: confettiFall 2.4s ease-out forwards;
+        }
+
+        @keyframes confettiFall {
+            0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between p-3 sm:p-5">
+
+    <!-- Dynamic Scenic Background Layers -->
+    <div id="scene-bg"></div>
+    <div id="scene-overlay"></div>
+
+    <!-- ==========================================
+         PERSISTENT TOP BAR (GENIALLY HUD)
+         ========================================== -->
+    <header class="w-full max-w-md mb-3 z-20">
+        <div class="bg-slate-950/85 backdrop-blur-md border border-amber-400/35 rounded-2xl px-3.5 py-2.5 shadow-lg flex items-center justify-between gap-2">
+            
+            <!-- Left: Back to Story Map Button -->
+            <button id="btn-back-map" onclick="openHub()" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold border border-slate-700 cursor-pointer transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                <span>Map</span>
+            </button>
+
+            <!-- Brand Label on Hub -->
+            <div id="hud-brand" class="flex items-center gap-1.5 text-amber-400 font-breakout text-sm tracking-wide">
+                <span>🐝</span>
+                <span>BREAKOUT</span>
+            </div>
+
+            <!-- Center: Collected Key Clues Tracker [ ? ] [ ? ] [ ? ] [ ? ] -->
+            <div class="flex items-center gap-1.5" title="Collected Secret Code Clues">
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold hidden sm:inline mr-0.5">Clues:</span>
+                <div id="clue-slot-1" class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-600 flex items-center justify-center font-breakout text-xs font-bold text-slate-500">?</div>
+                <div id="clue-slot-2" class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-600 flex items-center justify-center font-breakout text-xs font-bold text-slate-500">?</div>
+                <div id="clue-slot-3" class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-600 flex items-center justify-center font-breakout text-xs font-bold text-slate-500">?</div>
+                <div id="clue-slot-4" class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-600 flex items-center justify-center font-breakout text-xs font-bold text-slate-500">?</div>
+            </div>
+
+            <!-- Right: Chapter Progress Counter -->
+            <div class="text-right">
+                <span id="hud-progress" class="text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-400/30 px-2.5 py-1 rounded-xl">
+                    0/4
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==========================================
+         MAIN CONTENT CONTAINER
+         ========================================== -->
+    <main class="w-full max-w-md my-auto z-10">
+
+        <!-- ==========================================
+             SCREEN 0: HUB SCREEN ("STORY MAP / MISSION BOARD")
+             ========================================== -->
+        <section id="screen-hub" class="screen active space-y-4">
+            <!-- Hero Banner Card -->
+            <div class="breakout-card rounded-3xl p-5 sm:p-6 text-center relative overflow-hidden">
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/40 text-amber-300 text-[11px] font-bold uppercase tracking-widest mb-2">
+                    <span>🎬</span> Interactive Movie Breakout
+                </div>
+                <h1 class="font-breakout text-3xl sm:text-4xl font-bold text-white tracking-tight mb-2">
+                    ME BEFORE YOU
+                </h1>
+                <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                    Louisa Clark’s life changed forever the day she took a job at Stortfold Castle. Explore <strong>4 chapters</strong> of her story, read the summaries, solve interactive puzzles, and collect the <strong>4 secret clues</strong> to unlock Will’s final letter in Paris!
+                </p>
+            </div>
+
+            <!-- Interactive Story Map / Mission Board -->
+            <div class="breakout-card rounded-3xl p-4 sm:p-5">
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <h2 class="font-breakout text-base uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                        <span>🗺️</span> Story Map & Missions
+                    </h2>
+                    <span class="text-[11px] text-slate-400">Tap a mission to start</span>
+                </div>
+
+                <div class="map-connector space-y-3">
+                    <!-- Mission 1 Pin Card -->
+                    <button onclick="openMission(1)" id="map-card-1" class="w-full relative z-10 flex items-center gap-3.5 p-3 rounded-2xl bg-slate-900/90 hover:bg-slate-800/95 border-2 border-amber-400/60 text-left transition-all cursor-pointer pulse-badge">
+                        <div id="map-icon-1" class="w-11 h-11 rounded-xl bg-amber-500 text-slate-950 font-breakout font-bold text-lg flex items-center justify-center shrink-0 shadow-md">
+                            1
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400">Act I • England</span>
+                                <span id="map-status-1" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-semibold">Ready</span>
+                            </div>
+                            <h3 class="font-breakout text-base text-white truncate">Stortfold Castle</h3>
+                            <p class="text-xs text-slate-400 truncate">Sliding Crest Puzzle & Café Check</p>
+                        </div>
+                        <div id="map-lock-1" class="text-amber-400 text-xl shrink-0">🔓</div>
+                    </button>
+
+                    <!-- Mission 2 Pin Card -->
+                    <button onclick="openMission(2)" id="map-card-2" class="w-full relative z-10 flex items-center gap-3.5 p-3 rounded-2xl bg-slate-900/90 hover:bg-slate-800/95 border-2 border-slate-700 text-left transition-all cursor-pointer">
+                        <div id="map-icon-2" class="w-11 h-11 rounded-xl bg-slate-800 text-slate-300 font-breakout font-bold text-lg flex items-center justify-center shrink-0 border border-slate-600">
+                            2
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-rose-400">Act II • Celebration</span>
+                                <span id="map-status-2" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold">Mission 2</span>
+                            </div>
+                            <h3 class="font-breakout text-base text-white truncate">Concert & 27th Birthday</h3>
+                            <p class="text-xs text-slate-400 truncate">Flashlight Search & Music Check</p>
+                        </div>
+                        <div id="map-lock-2" class="text-slate-500 text-xl shrink-0">🔒</div>
+                    </button>
+
+                    <!-- Mission 3 Pin Card -->
+                    <button onclick="openMission(3)" id="map-card-3" class="w-full relative z-10 flex items-center gap-3.5 p-3 rounded-2xl bg-slate-900/90 hover:bg-slate-800/95 border-2 border-slate-700 text-left transition-all cursor-pointer">
+                        <div id="map-icon-3" class="w-11 h-11 rounded-xl bg-slate-800 text-slate-300 font-breakout font-bold text-lg flex items-center justify-center shrink-0 border border-slate-600">
+                            3
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-400">Act III • Paradise</span>
+                                <span id="map-status-3" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold">Mission 3</span>
+                            </div>
+                            <h3 class="font-breakout text-base text-white truncate">Mauritius Island</h3>
+                            <p class="text-xs text-slate-400 truncate">Cryptex Dials & Clinic Check</p>
+                        </div>
+                        <div id="map-lock-3" class="text-slate-500 text-xl shrink-0">🔒</div>
+                    </button>
+
+                    <!-- Mission 4 Pin Card -->
+                    <button onclick="openMission(4)" id="map-card-4" class="w-full relative z-10 flex items-center gap-3.5 p-3 rounded-2xl bg-slate-900/90 hover:bg-slate-800/95 border-2 border-slate-700 text-left transition-all cursor-pointer">
+                        <div id="map-icon-4" class="w-11 h-11 rounded-xl bg-slate-800 text-slate-300 font-breakout font-bold text-lg flex items-center justify-center shrink-0 border border-slate-600">
+                            4
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Act IV • Finale</span>
+                                <span id="map-status-4" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold">Mission 4</span>
+                            </div>
+                            <h3 class="font-breakout text-base text-white truncate">Paris Café</h3>
+                            <p class="text-xs text-slate-400 truncate">Scratch-Off Wax Seal & Letter</p>
+                        </div>
+                        <div id="map-lock-4" class="text-slate-500 text-xl shrink-0">🔒</div>
+                    </button>
+                </div>
+
+                <!-- Final Master Lock Vault Box -->
+                <div class="mt-4 pt-4 border-t border-slate-800">
+                    <button onclick="openMasterLock()" id="btn-master-vault" class="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-950/90 via-slate-900 to-amber-950/90 border-2 border-amber-500/40 flex items-center justify-between text-left transition-all cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <div id="vault-icon" class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-2xl">
+                                🔐
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-amber-400 block">Final Master Lock</span>
+                                <h3 class="font-breakout text-base sm:text-lg text-white">The Paris Envelope</h3>
+                                <p id="vault-subtitle" class="text-xs text-slate-400">Collect all 4 clues to unlock</p>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1.5 rounded-xl bg-amber-400/20 text-amber-300 font-breakout text-xs font-bold border border-amber-400/40">
+                            OPEN
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             MISSION 1: STORTFOLD CASTLE (SLIDING PUZZLE)
+             ========================================== -->
+        <section id="screen-1" class="screen breakout-card rounded-3xl p-5 sm:p-6">
+            <div class="flex items-center justify-between mb-2">
+                <span class="px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[11px] font-bold uppercase tracking-wider">
+                    🏰 Mission 1 • Act I
+                </span>
+                <span class="text-xs font-bold text-slate-400">Reward: Clue #1</span>
+            </div>
+            <h2 class="font-breakout text-2xl sm:text-3xl text-white mb-3">Stortfold Castle</h2>
+
+            <!-- Two Mobile Tabs: Story Summary vs Breakout Challenge -->
+            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800 mb-4">
+                <button onclick="switchMissionTab(1, 'summary')" id="tab-1-summary" class="py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold bg-amber-400 text-slate-950 transition-all cursor-pointer">
+                    📖 Story Summary
+                </button>
+                <button onclick="switchMissionTab(1, 'challenge')" id="tab-1-challenge" class="py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-all cursor-pointer">
+                    🧩 Breakout Challenge
+                </button>
+            </div>
+
+            <!-- TAB A: STORY SUMMARY -->
+            <div id="panel-1-summary" class="space-y-3">
+                <div class="bg-slate-950/75 border border-amber-500/25 rounded-2xl p-4 text-slate-200 text-sm leading-relaxed space-y-2.5">
+                    <p>
+                        Quirky, warm-hearted <strong>Louisa “Lou” Clark</strong> loses her beloved job at <strong>The Buttered Bun</strong> café, leaving her working-class family in financial trouble. Desperate for income, she accepts a caregiver position at the grand <strong>Stortfold Castle</strong>.
+                    </p>
+                    <p>
+                        She is hired by Camilla Traynor to look after her son, <strong>Will Traynor</strong>—a former wealthy banker who became quadriplegic after a motorcycle accident two years earlier. Lou soon discovers that Camilla signed her onto a strict <strong>6-month contract</strong>, though the family hides the true reason behind this deadline.
+                    </p>
+                </div>
+
+                <button onclick="switchMissionTab(1, 'challenge')" class="w-full py-3.5 px-5 rounded-2xl btn-3d-gold text-base flex items-center justify-center gap-2 cursor-pointer">
+                    <span>Start Breakout Challenge</span>
+                    <span>→</span>
+                </button>
+            </div>
+
+            <!-- TAB B: BREAKOUT CHALLENGE -->
+            <div id="panel-1-challenge" class="hidden space-y-4">
+                <!-- Interactive 3x3 Sliding Tile Puzzle -->
+                <div class="bg-slate-950/75 border border-slate-800 rounded-2xl p-3.5 text-center">
+                    <p class="text-xs text-amber-200 font-semibold mb-2.5">
+                        1. Slide the tiles next to the empty space to restore the Stortfold Crest:
+                    </p>
+
+                    <div id="puzzle-board" class="puzzle-board"></div>
+
+                    <div class="flex items-center justify-center gap-3 mt-2.5">
+                        <button onclick="shufflePuzzle()" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white border border-slate-700 cursor-pointer">
+                            Shuffle
+                        </button>
+                        <button onclick="autoSolvePuzzle()" class="text-[11px] px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40 cursor-pointer">
+                            Auto-Solve Helper
+                        </button>
+                    </div>
+                    <p id="puzzle-feedback" class="text-xs text-slate-400 mt-2">
+                        Tap a tile adjacent to the empty slot to slide it.
+                    </p>
+                </div>
+
+                <!-- Story Comprehension Check -->
+                <div class="bg-slate-950/75 border border-slate-800 rounded-2xl p-3.5">
+                    <label for="answer-1" class="block text-xs sm:text-sm font-semibold text-amber-200 mb-1.5">
+                        2. Story Check: What was the name of the café where Lou worked before Stortfold Castle?
+                    </label>
+                    <input type="text" id="answer-1" placeholder="Type café name from summary..." autocomplete="off"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-400">
+                    <p id="error-1" class="hidden text-red-400 text-xs mt-1.5 font-medium">
+                        ⚠️ Check the first sentence of the Story Summary!
+                    </p>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="toggleHint(1)" class="px-3.5 py-3 rounded-2xl bg-slate-800 text-amber-300 text-xs font-bold border border-slate-700 cursor-pointer shrink-0">
+                        💡 Hint
+                    </button>
+                    <button onclick="verifyMission1()" class="flex-1 py-3 px-4 rounded-2xl btn-3d-gold text-sm sm:text-base cursor-pointer">
+                        Claim Clue #1
+                    </button>
+                </div>
+
+                <div id="hint-1" class="hidden p-3 rounded-xl bg-amber-950/70 border border-amber-400/40 text-amber-200 text-xs">
+                    <strong>Hint:</strong> Complete the sliding crest (or tap <em>Auto-Solve Helper</em>) to reveal digit <strong>6</strong>, and enter <strong>The Buttered Bun</strong> (or <strong>Buttered Bun</strong>) for the café name.
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             MISSION 2: CONCERT & BIRTHDAY (FLASHLIGHT)
+             ========================================== -->
+        <section id="screen-2" class="screen breakout-card rounded-3xl p-5 sm:p-6">
+            <div class="flex items-center justify-between mb-2">
+                <span class="px-2.5 py-1 rounded-full bg-rose-500/20 border border-rose-400/40 text-rose-300 text-[11px] font-bold uppercase tracking-wider">
+                    🎻 Mission 2 • Act II
+                </span>
+                <span class="text-xs font-bold text-slate-400">Reward: Clue #2</span>
+            </div>
+            <h2 class="font-breakout text-2xl sm:text-3xl text-white mb-3">Concert & 27th Birthday</h2>
+
+            <!-- Tabs -->
+            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800 mb-4">
+                <button onclick="switchMissionTab(2, 'summary')" id="tab-2-summary" class="py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold bg-amber-400 text-slate-950 transition-all cursor-pointer">
+                    📖 Story Summary
+                </button>
+                <button onclick="switchMissionTab(2, 'challenge')" id="tab-2-challenge" class="py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-all cursor-pointer">
+                    🔦 Breakout Challenge
+                </button>
+            </div>
+
+            <!-- TAB A: STORY SUMMARY -->
+            <div id="panel-2-summary" class="space-y-3">
+                <div class="bg-slate-950/75 border border-rose-500/25 rounded-2xl p-4 text-slate-200 text-sm leading-relaxed space-y-2.5">
+                    <p>
+                        At first, Will is bitter and cold, but Lou’s colorful outfits and humor slowly break down his walls. To help him reconnect with the world, Lou joins Will at a classical orchestra concert featuring music by <strong>Mozart</strong>, wearing a stunning red dress.
+                    </p>
+                    <p>
+                        For Lou’s <strong>27th birthday</strong>, Will surprises her with a thoughtful gift she had loved as a child: black-and-yellow striped <strong>bumblebee tights</strong>. Soon after, Lou overhears Will’s parents arguing and learns the painful truth—Will plans to end his life once the 6 months expire.
+                    </p>
+                </div>
+
+                <button onclick="switchMissionTab(2, 'challenge')" class="w-full py-3.5 px-5 rounded-2xl btn-3d-gold text-base flex items-center justify-center gap-2 cursor-pointer">
+                    <span>Start Breakout Challenge</span>
+                    <span>→</span>
+                </button>
+            </div>
+
+            <!-- TAB B: BREAKOUT CHALLENGE -->
+            <div id="panel-2-challenge" class="hidden space-y-4">
+                <!-- Interactive Flashlight in the Dark -->
+                <div class="bg-slate-950/75 border border-slate-800 rounded-2xl p-3.5">
+                    <p class="text-xs text-amber-200 font-semibold mb-2">
+                        1. Drag your finger across Will’s dark study to shine the spotlight and find the glowing tag:
+                    </p>
+
+                    <div id="flashlight-stage">
+                        <!-- Hidden Room Items -->
+                        <div class="w-full h-full p-4 flex flex-col justify-between select-none">
+                            <div class="flex justify-between items-start">
+                                <span class="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/50 text-rose-300 text-xs font-bold">
+                                    👗 Red Evening Dress
+                                </span>
+                                <span class="px-2.5 py-1 rounded-lg bg-indigo-500/20 border border-indigo-400/50 text-indigo-300 text-xs font-bold">
+                                    🎼 Symphony: MOZART
+                                </span>
+                            </div>
+
+                            <div class="my-auto text-center">
+                                <div class="inline-block px-4 py-2 rounded-2xl bg-amber-400/25 border-2 border-amber-400 text-amber-300 font-breakout text-lg tracking-wider shadow-lg">
+                                    🐝 TAG: BEE-27
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-end text-[11px] text-slate-400">
+                                <span>🎂 27th Birthday Gift</span>
+                                <span>🧦 Striped Bumblebee Tights</span>
+                            </div>
+                        </div>
+
+                        <!-- Dark Overlay with Spotlight Cutout -->
+                        <div id="flashlight-mask"></div>
+                    </div>
+                </div>
+
+                <!-- Story Comprehension Check -->
+                <div class="bg-slate-950/75 border border-slate-800 rounded-2xl p-3.5">
+                    <label for="answer-2" class="block text-xs sm:text-sm font-semibold text-amber-200 mb-1.5">
+                        2. Story Check: Which composer's music did Will and Lou listen to at the classical concert?
+                    </label>
+                    <input type="text" id="answer-2" placeholder="Type composer's last name..." autocomplete="off"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-400">
+                    <p id="error-2" class="hidden text-red-400 text-xs mt-1.5 font-medium">
+                        ⚠️ Check the Story Summary or shine your spotlight in the top-right corner!
+                    </p>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="toggleHint(2)" class="px-3.5 py-3 rounded-2xl bg-slate-800 text-amber-300 text-xs font-bold border border-slate-700 cursor-pointer shrink-0">
+                        💡 Hint
+                    </button>
+                    <button onclick="verifyMission2()" class="flex-1 py-3 px-4 rounded-2xl btn-3d-gold text-sm sm:text-base cursor-pointer">
+                        Claim Clue #2
+                    </button>
+                </div>
+
+                <div id="hint-2" class="hidden p-3 rounded-xl bg-amber-950/70 border border-amber-400/40 text-amber-200 text-xs">
+                    <strong>Hint:</strong> The classical composer mentioned in the summary is <strong>Mozart</strong>.
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             MISSION 3: MAURITIUS ISLAND (CRYPTEX DIALS)
+             ========================================== -->
+        <section id="screen-3" class="screen breakout-card rounded-3xl p-5 sm:p-6">
+            <div class="flex items-center justify-between mb-2">
+                <span class="px-2.5 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-[11px] font-bold uppercase tracking-wider">
+                    🏝️ Mission 3 • Act III
+                </span>
+                <span class="text-xs font-bold text-slate-400">Reward: Clue #3</span>
+            </div>
+            <h2 class="font-breakout text-2xl sm:text-3xl text-white mb-3">Mauritius Island</h2>
+
+            <!-- Tabs -->
+            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800 mb-4">
+                <button onclick="switchMissionTab(3, 'summary')" id="tab-3-summary" class="py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold bg-amber-400 text-slate-950 transition-all cursor-pointer">
+                    📖 Story Summary
+                </button>
+                <button onclick="switchMissionTab(3, 'challenge')" id="tab-3-challenge" class="py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-all cursor-pointer">
+                    🔐 Breakout Challenge
+                </button>
+            </div>
+
+            <!-- TAB A: STORY SUMMARY -->
+            <div id="panel-3-summary" class="space-y-3">
+                <div class="bg-slate-950/75 border border-cyan-500/25 rounded-2xl p-4 text-slate-200 text-sm leading-relaxed space-y-2.5">
+                    <p>
+                        Determined to show Will that life is still worth living, Lou organizes a bucket list of adventures, culminating in a dream tropical vacation to <strong>Mauritius</strong>.
+                    </p>
+                    <p>
+                        On a moonlit beach in paradise, Lou confesses her love for him. Though Will deeply loves her back, he reveals he cannot bear living with constant pain and limitations. He confirms he will still travel to the <strong>Dignitas (DIGN)</strong> clinic in <strong>Switzerland</strong>, begging Lou not to miss out on living a full, vibrant life.
+                    </p>
+                </div>
+
+                <button onclick="switchMissionTab(3, 'challenge')" class="w-full py-3.5 px-5 rounded-2xl btn-3d-gold text-base flex items-center justify-center gap-2 cursor-pointer">
+                    <span>Start Breakout Challenge</span>
+                    <span>→</span>
+                </button>
+            </div>
+
+            <!-- TAB B: BREAKOUT CHALLENGE -->
+            <div id="panel-3-challenge" class="hidden space-y-4">
+                <!-- Interactive Cryptex 4-Letter Dials -->
+                <div class="bg-slate-950/75 border border-slate-800 rounded-2xl p-3.5 text-center">
+                    <p class="text-xs text-amber-200 font-semibold mb-3">
+                        1. Spin the 4 Cryptex dials to set the first 4 letters of the Swiss clinic Will chose (<em>Dignitas</em>):
+                    </p>
+
+                    <div id="cryptex-dials" class="flex justify-center gap-2.5 mb-2.5"></div>
+
+                    <p id="cryptex-feedback" class="text-xs text-slate-400">
+                        Tap ▲ or ▼ to align the 4-letter code.
+                    </p>
+                </div>
+
+                <!-- Story Comprehension Check -->
+                <div class="bg-slate-950/75 border border-slate-800 rounded-2xl p-3.5">
+                    <label for="answer-3" class="block text-xs sm:text-sm font-semibold text-amber-200 mb-1.5">
+                        2. Story Check: In which country is the Dignitas clinic located?
+                    </label>
+                    <input type="text" id="answer-3" placeholder="Type country name from summary..." autocomplete="off"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-400">
+                    <p id="error-3" class="hidden text-red-400 text-xs mt-1.5 font-medium">
+                        ⚠️ Check both the 4 Cryptex letters (D-I-G-N) and the country name in the summary!
+                    </p>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="toggleHint(3)" class="px-3.5 py-3 rounded-2xl bg-slate-800 text-amber-300 text-xs font-bold border border-slate-700 cursor-pointer shrink-0">
+                        💡 Hint
+                    </button>
+                    <button onclick="verifyMission3()" class="flex-1 py-3 px-4 rounded-2xl btn-3d-gold text-sm sm:text-base cursor-pointer">
+                        Claim Clue #3
+                    </button>
+                </div>
+
+                <div id="hint-3" class="hidden p-3 rounded-xl bg-amber-950/70 border border-amber-400/40 text-amber-200 text-xs">
+                    <strong>Hint:</strong> Set the Cryptex dials to <strong>D - I - G - N</strong> and type <strong>Switzerland</strong> in the country box.
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             MISSION 4: PARIS CAFÉ (SCRATCH-OFF SEAL)
+             ========================================== -->
+        <section id="screen-4" class="screen breakout-card rounded-3xl p-5 sm:p-6">
+            <div class="flex items-center justify-between mb-2">
+                <span class="px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 text-[11px] font-bold uppercase tracking-wider">
+                    🥐 Mission 4 • Act IV
+                </span>
+                <span class="text-xs font-bold text-slate-400">Reward: Clue #4</span>
+            </div>
+            <h2 class="font-breakout text-2xl sm:text-3xl text-white mb-3">Paris Café</h2>
+
+            <!-- Tabs -->
+            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-950/90 rounded-2xl border border-slate-800 mb-4">
+                <button onclick="switchMissionTab(4, 'summary')" id="tab-4-summary" class="py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold bg-amber-400 text-slate-950 transition-all cursor-pointer">
+                    📖 Story Summary
+                </button>
+                <button onclick="switchMissionTab(4, 'challenge')" id="tab-4-challenge" class="py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-all cursor-pointer">
+                    ✨ Breakout Challenge
+                </button>
+            </div>
+
+            <!-- TAB A: STORY SUMMARY -->
+            <div id="panel-4-summary" class="space-y-3">
+                <div class="bg-slate-950/75 border border-indigo-500/25 rounded-2xl p-4 text-slate-200 text-sm leading-relaxed space-y-2.5">
+                    <p>
+                        Weeks after saying goodbye to Will in Switzerland, Lou honors his wishes and travels to his favorite city, <strong>Paris</strong>. Following his instructions, she visits his beloved Parisian perfumery and café, <strong>L’Artisan Parfumeur</strong>.
+                    </p>
+                    <p>
+                        Sitting at an outdoor café table with a croissant and coffee, Lou opens Will’s final letter. He leaves her enough money to follow her fashion design dreams and concludes with his iconic advice: <strong>“Live boldly. Push yourself. Don’t settle.”</strong>
+                    </p>
+                </div>
+
+                <button onclick="switchMissionTab(4, 'challenge')" class="w-full py-3.5 px-5 rounded-2xl btn-3d-gold text-base flex items-center justify-center gap-2 cursor-pointer">
+                    <span>Start Breakout Challenge</span>
+                    <span>→</span>
+                </button>
+            </div>
+
+            <!-- TAB B: BREAKOUT CHALLENGE -->
+            <div id="panel-4-challenge" class="hidden space-y-4">
+                <!-- Interactive Scratch-Off Wax Seal -->
+                <div class="bg-slate-950/75 border border-slate-800 rounded-2xl p-3.5">
+                    <p class="text-xs text-amber-200 font-semibold mb-2">
+                        1. Rub your finger across the gold foil seal on Will’s envelope to reveal his hidden motto:
+                    </p>
+
+                    <div id="scratch-wrapper">
+                        <!-- Hidden Message Underneath -->
+                        <div class="w-full h-full parchment-letter p-4 flex flex-col items-center justify-center text-center">
+                            <span class="text-[10px] uppercase tracking-widest text-amber-800 font-bold mb-1">Place Dauphine • Paris</span>
+                            <p class="font-serif-story italic text-slate-700 text-xs sm:text-sm mb-1">
+                                “Push yourself. Don’t settle. Just live well...”
+                            </p>
+                            <p class="font-breakout font-bold text-xl text-amber-900 border-t border-amber-900/20 pt-1 px-4">
+                                “LIVE BOLDLY”
+                            </p>
+                        </div>
+                        <!-- Gold Scratch Canvas -->
+                        <canvas id="scratch-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Story Comprehension Check -->
+                <div class="bg-slate-950/75 border border-slate-800 rounded-2xl p-3.5">
+                    <label for="answer-4" class="block text-xs sm:text-sm font-semibold text-amber-200 mb-1.5">
+                        2. Story Check: What is the name of the Parisian perfumery/café mentioned in Will's letter?
+                    </label>
+                    <input type="text" id="answer-4" placeholder="Type name from summary (e.g. L'Artisan)..." autocomplete="off"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-400">
+                    <p id="error-4" class="hidden text-red-400 text-xs mt-1.5 font-medium">
+                        ⚠️ Check the first paragraph of the Story Summary!
+                    </p>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="toggleHint(4)" class="px-3.5 py-3 rounded-2xl bg-slate-800 text-amber-300 text-xs font-bold border border-slate-700 cursor-pointer shrink-0">
+                        💡 Hint
+                    </button>
+                    <button onclick="verifyMission4()" class="flex-1 py-3 px-4 rounded-2xl btn-3d-gold text-sm sm:text-base cursor-pointer">
+                        Claim Clue #4
+                    </button>
+                </div>
+
+                <div id="hint-4" class="hidden p-3 rounded-xl bg-amber-950/70 border border-amber-400/40 text-amber-200 text-xs">
+                    <strong>Hint:</strong> The Parisian perfumery/café is <strong>L'Artisan Parfumeur</strong> (typing <strong>Artisan</strong> or <strong>L'Artisan Parfumeur</strong> works!).
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SCREEN 5: FINAL MASTER LOCK VAULT
+             ========================================== -->
+        <section id="screen-master" class="screen breakout-card rounded-3xl p-5 sm:p-6 text-center">
+            <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-lg">
+                🔐
+            </div>
+            <span class="text-xs font-bold uppercase tracking-widest text-amber-400">Final Master Lock</span>
+            <h2 class="font-breakout text-2xl sm:text-3xl text-white mt-1 mb-2">The Paris Envelope</h2>
+            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed mb-4">
+                Enter the <strong>4 secret clues</strong> you gathered from Lou & Will’s journey (representing <em>6 months</em>, <em>Bumblebee</em>, and her <em>27th birthday</em>) to break the wax seal!
+            </p>
+
+            <!-- 4 Master Code Boxes (Strictly Contained Grid) -->
+            <div id="master-inputs" class="master-code-grid">
+                <input type="text" maxlength="1" id="m-code-1" placeholder="?" class="master-code-box text-center font-breakout text-2xl font-bold uppercase rounded-2xl bg-slate-950 border-2 border-amber-400/60 text-amber-300 focus:outline-none focus:border-amber-300">
+                <input type="text" maxlength="1" id="m-code-2" placeholder="?" class="master-code-box text-center font-breakout text-2xl font-bold uppercase rounded-2xl bg-slate-950 border-2 border-amber-400/60 text-amber-300 focus:outline-none focus:border-amber-300">
+                <input type="text" maxlength="1" id="m-code-3" placeholder="?" class="master-code-box text-center font-breakout text-2xl font-bold uppercase rounded-2xl bg-slate-950 border-2 border-amber-400/60 text-amber-300 focus:outline-none focus:border-amber-300">
+                <input type="text" maxlength="1" id="m-code-4" placeholder="?" class="master-code-box text-center font-breakout text-2xl font-bold uppercase rounded-2xl bg-slate-950 border-2 border-amber-400/60 text-amber-300 focus:outline-none focus:border-amber-300">
+            </div>
+
+            <!-- Auto-Fill Helper from Collected Clue Badges -->
+            <div class="mb-4">
+                <button onclick="autoFillMasterCode()" id="btn-autofill-clues" class="text-xs px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-amber-300 border border-amber-400/35 cursor-pointer transition-colors">
+                    ✨ Tap to Auto-Fill Collected Clues
+                </button>
+                <p id="master-error" class="hidden text-red-400 text-xs mt-2 font-medium">
+                    ⚠️ Incorrect Master Code! Complete all 4 missions on the Story Map to collect every clue.
+                </p>
+            </div>
+
+            <button onclick="verifyMasterLock()" class="w-full py-3.5 px-6 rounded-2xl btn-3d-gold text-base flex items-center justify-center gap-2 cursor-pointer">
+                <span>Unlock Final Letter</span>
+                <span>✉️</span>
+            </button>
+        </section>
+
+        <!-- ==========================================
+             SCREEN 6: EMOTIONAL FINALE & CERTIFICATE
+             ========================================== -->
+        <section id="screen-finale" class="screen">
+            <div class="parchment-letter rounded-3xl p-6 sm:p-7 border-4 border-amber-400 shadow-2xl">
+                <div class="flex items-center justify-between border-b border-amber-900/15 pb-3 mb-4">
+                    <div>
+                        <span class="inline-block px-2.5 py-0.5 rounded-full bg-emerald-600/15 text-emerald-800 text-[10px] font-bold uppercase tracking-widest mb-1">
+                            🏆 Breakout Completed • 4/4 Clues
+                        </span>
+                        <h2 class="font-serif-story text-2xl font-bold text-slate-900">Will’s Final Letter</h2>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-amber-500/20 border-2 border-amber-700/40 flex items-center justify-center text-2xl rotate-6">
+                        🐝
+                    </div>
+                </div>
+
+                <div class="font-serif-story text-slate-800 text-sm sm:text-base leading-relaxed space-y-3 italic mb-5">
+                    <p>“Dearest Lou,</p>
+                    <p>
+                        By the time you read this, you will be sitting at Café Marquis on Place Dauphine, with a warm croissant and coffee before you. Go to <strong>L’Artisan Parfumeur</strong> on Rue des Francs-Bourgeois and try the scent called <em>Papillons Extrême</em>.
+                    </p>
+                    <p>
+                        Do not think of me too often. I do not want to think of you getting all maudlin. Just live well. Just live.
+                    </p>
+                    <p class="not-italic font-breakout text-lg font-bold text-amber-900 bg-amber-500/15 border border-amber-700/25 rounded-2xl p-3 text-center">
+                        “Live boldly. Push yourself. Don’t settle.”
+                    </p>
+                    <p class="not-italic font-bold text-right text-slate-900 text-sm">
+                        With all my love, Will”
+                    </p>
+                </div>
+
+                <!-- Summary Badge -->
+                <div class="bg-slate-900 text-white rounded-2xl p-3.5 mb-4 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] uppercase tracking-wider text-amber-400 font-bold block">Master Code Cracked</span>
+                        <span class="font-breakout text-lg tracking-widest text-white">6 — B — 2 — 7</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Story Chapters</span>
+                        <span class="font-breakout text-sm text-emerald-400">100% Unlocked</span>
+                    </div>
+                </div>
+
+                <button onclick="resetFullGame()" class="w-full py-3.5 px-5 rounded-2xl btn-3d-emerald text-base flex items-center justify-center gap-2 cursor-pointer">
+                    <span>🔄</span>
+                    <span>Play Again</span>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==========================================
+         REWARD MODAL POPUP (CLUE UNLOCKED)
+         ========================================== -->
+    <div id="clue-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="breakout-card rounded-3xl p-6 max-w-xs w-full text-center border-2 border-amber-400 shadow-2xl">
+            <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-amber-400 text-slate-950 font-breakout text-3xl font-bold flex items-center justify-center shadow-lg" id="modal-clue-char">
+                6
+            </div>
+            <span class="text-xs font-bold uppercase tracking-widest text-emerald-400">Mission Complete!</span>
+            <h3 class="font-breakout text-xl text-white mt-1 mb-2" id="modal-clue-title">Clue #1 Unlocked</h3>
+            <p class="text-xs text-slate-300 leading-relaxed mb-5" id="modal-clue-desc">
+                You discovered the secret digit representing Lou's 6-month contract at Stortfold Castle.
+            </p>
+            <button onclick="closeClueModal()" class="w-full py-3 px-4 rounded-2xl btn-3d-gold text-sm cursor-pointer">
+                Back to Story Map →
+            </button>
+        </div>
+    </div>
+
+    <footer class="w-full max-w-md text-center text-[11px] text-slate-400/75 mt-4 pb-1 z-10">
+        Me Before You (2016) • Interactive Languages Breakout
+    </footer>
+
+    <script>
+        /* ==========================================================================
+           1. CUSTOM ILLUSTRATED SVG BACKGROUNDS FOR EVERY SCENE
+           ========================================================================== */
+        const scenicBackgrounds = {
+            // Story Map Hub: Warm English countryside & golden bumblebee motif
+            hub: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><linearGradient id='gHub' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%231e293b'/><stop offset='55%' stop-color='%230f172a'/><stop offset='100%' stop-color='%231c1917'/></linearGradient></defs><rect width='800' height='1200' fill='url(%23gHub)'/><circle cx='400' cy='280' r='260' fill='%23f59e0b' opacity='0.09'/><path d='M0 980 Q220 900 450 960 T800 920 L800 1200 L0 1200 Z' fill='%23064e3b' opacity='0.45'/></svg>")`,
+            
+            // Mission 1: Stortfold Castle in rain & English gardens
+            1: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><linearGradient id='sky1' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%230f172a'/><stop offset='55%' stop-color='%23334155'/><stop offset='100%' stop-color='%23064e3b'/></linearGradient></defs><rect width='800' height='1200' fill='url(%23sky1)'/><path d='M0 860 Q260 760 520 845 T800 810 L800 1200 L0 1200 Z' fill='%23064e3b' opacity='0.75'/><path d='M0 960 Q400 870 800 950 L800 1200 L0 1200 Z' fill='%23022c22'/><g fill='%230f172a' opacity='0.88'><rect x='250' y='550' width='300' height='270'/><rect x='220' y='480' width='68' height='340'/><rect x='512' y='480' width='68' height='340'/><polygon points='220,480 254,415 288,480'/><polygon points='512,480 546,415 580,480'/><rect x='362' y='510' width='76' height='310'/></g><g fill='%23fbbf24' opacity='0.6'><rect x='295' y='605' width='24' height='38' rx='12'/><rect x='388' y='575' width='24' height='38' rx='12'/><rect x='480' y='605' width='24' height='38' rx='12'/></g><g stroke='%2394a3b8' stroke-width='2' opacity='0.22'><line x1='140' y1='120' x2='120' y2='220'/><line x1='320' y1='80' x2='300' y2='180'/><line x1='620' y1='150' x2='600' y2='250'/><line x1='490' y1='260' x2='470' y2='360'/></g></svg>")`,
+            
+            // Mission 2: Classical Concert Hall with golden spotlights
+            2: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><radialGradient id='hall2' cx='50%' cy='28%' r='70%'><stop offset='0%' stop-color='%2392400e'/><stop offset='55%' stop-color='%234c0519'/><stop offset='100%' stop-color='%23090d16'/></radialGradient></defs><rect width='800' height='1200' fill='url(%23hall2)'/><polygon points='400,60 150,900 650,900' fill='%23fbbf24' opacity='0.11'/><circle cx='400' cy='220' r='170' fill='%23f59e0b' opacity='0.18'/><path d='M0 0 Q190 420 0 880 Z' fill='%23881337' opacity='0.65'/><path d='M800 0 Q610 420 800 880 Z' fill='%23881337' opacity='0.65'/></svg>")`,
+            
+            // Mission 3: Mauritius tropical sunset beach
+            3: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><linearGradient id='sun3' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%231e1b4b'/><stop offset='38%' stop-color='%23be123c'/><stop offset='68%' stop-color='%23f59e0b'/><stop offset='100%' stop-color='%230e7490'/></linearGradient></defs><rect width='800' height='1200' fill='url(%23sun3)'/><circle cx='400' cy='670' r='135' fill='%23fef08a' opacity='0.88'/><rect x='0' y='715' width='800' height='485' fill='%23083344' opacity='0.88'/><ellipse cx='400' cy='760' rx='190' ry='15' fill='%23fde047' opacity='0.45'/><path d='M55 1200 Q110 850 185 645' stroke='%23020617' stroke-width='22' fill='none'/><path d='M185 645 Q90 605 40 665 M185 645 Q140 565 80 575 M185 645 Q255 575 305 625 M185 645 Q265 635 295 705' stroke='%23020617' stroke-width='14' fill='none'/></svg>")`,
+            
+            // Mission 4 & Master Lock: Paris Café & Eiffel Tower at twilight
+            4: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><linearGradient id='paris4' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%230f172a'/><stop offset='55%' stop-color='%23312e81'/><stop offset='100%' stop-color='%231e1b4b'/></linearGradient></defs><rect width='800' height='1200' fill='url(%23paris4)'/><circle cx='630' cy='210' r='44' fill='%23fef9c3' opacity='0.85'/><g fill='%23090d16' opacity='0.92'><polygon points='392,270 408,270 446,680 525,980 478,980 426,780 374,780 322,980 275,980 354,680'/><rect x='348' y='670' width='104' height='14'/><rect x='368' y='510' width='64' height='10'/></g><circle cx='400' cy='460' r='165' fill='%23fbbf24' opacity='0.14'/></svg>")`
+        };
+
+        /* ==========================================================================
+           2. GAME STATE & CLUES CONFIGURATION
+           ========================================================================== */
+        const gameState = {
+            unlockedClues: {
+                1: null, // '6'
+                2: null, // 'B'
+                3: null, // '2'
+                4: null  // '7'
+            },
+            clueValues: {
+                1: '6',
+                2: 'B',
+                3: '2',
+                4: '7'
+            },
+            clueDescriptions: {
+                1: {
+                    title: "Clue #1 Unlocked: 6",
+                    desc: "Representing the 6-month caregiver contract Lou signed at Stortfold Castle."
+                },
+                2: {
+                    title: "Clue #2 Unlocked: B",
+                    desc: "B for Bumblebee—the black-and-yellow striped tights Will gave Lou on her birthday."
+                },
+                3: {
+                    title: "Clue #3 Unlocked: 2",
+                    desc: "The first digit of Lou's 27th birthday celebration, unlocked after solving the Dignitas Cryptex."
+                },
+                4: {
+                    title: "Clue #4 Unlocked: 7",
+                    desc: "The final digit of Lou's 27th birthday, revealed beneath Will's Parisian wax seal."
+                }
+            }
+        };
+
+        /* ==========================================================================
+           3. NAVIGATION, SCENIC BACKGROUNDS & TAB SWITCHING
+           ========================================================================== */
+        function setSceneBg(key) {
+            const bg = document.getElementById('scene-bg');
+            if (bg && scenicBackgrounds[key]) {
+                bg.style.backgroundImage = scenicBackgrounds[key];
+            }
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(screenId);
+            if (target) target.classList.add('active');
+
+            const backBtn = document.getElementById('btn-back-map');
+            const brand = document.getElementById('hud-brand');
+            if (screenId === 'screen-hub') {
+                backBtn.classList.add('hidden');
+                backBtn.classList.remove('flex');
+                brand.classList.remove('hidden');
+            } else {
+                backBtn.classList.remove('hidden');
+                backBtn.classList.add('flex');
+                brand.classList.add('hidden');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function openHub() {
+            setSceneBg('hub');
+            updateHubUI();
+            showScreen('screen-hub');
+        }
+
+        function openMission(num) {
+            setSceneBg(num);
+            switchMissionTab(num, 'summary');
+            showScreen(`screen-${num}`);
+        }
+
+        function switchMissionTab(missionNum, tabName) {
+            const summaryBtn = document.getElementById(`tab-${missionNum}-summary`);
+            const challengeBtn = document.getElementById(`tab-${missionNum}-challenge`);
+            const summaryPanel = document.getElementById(`panel-${missionNum}-summary`);
+            const challengePanel = document.getElementById(`panel-${missionNum}-challenge`);
+
+            if (tabName === 'summary') {
+                summaryBtn.className = "py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold bg-amber-400 text-slate-950 transition-all cursor-pointer";
+                challengeBtn.className = "py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-all cursor-pointer";
+                summaryPanel.classList.remove('hidden');
+                challengePanel.classList.add('hidden');
+            } else {
+                challengeBtn.className = "py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold bg-amber-400 text-slate-950 transition-all cursor-pointer";
+                summaryBtn.className = "py-2 px-3 rounded-xl font-breakout text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-all cursor-pointer";
+                challengePanel.classList.remove('hidden');
+                summaryPanel.classList.add('hidden');
+
+                if (missionNum === 1) renderSlidingPuzzle();
+                if (missionNum === 4) setTimeout(initScratchCanvas, 60);
+            }
+        }
+
+        /* ==========================================================================
+           4. MISSION 1: 3x3 SLIDING TILE PUZZLE (OFFSCREEN CANVAS CREST SLICER)
+           ========================================================================== */
+        let masterCrestCanvas = null;
+
+        function buildStortfoldCrestCanvas() {
+            if (masterCrestCanvas) return masterCrestCanvas;
+
+            const size = 300;
+            const c = document.createElement('canvas');
+            c.width = size;
+            c.height = size;
+            const ctx = c.getContext('2d');
+
+            // 1. Rich Royal Blue & Slate Radial Backdrop
+            const bgGrad = ctx.createRadialGradient(150, 140, 20, 150, 150, 195);
+            bgGrad.addColorStop(0, '#1e3a8a');
+            bgGrad.addColorStop(0.65, '#172554');
+            bgGrad.addColorStop(1, '#090d16');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, size, size);
+
+            // Subtle diagonal heraldic stripes
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.08)';
+            ctx.lineWidth = 8;
+            for (let i = -300; i < 600; i += 36) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i + 300, 300);
+                ctx.stroke();
+            }
+
+            // 2. Ornate Gold Heraldic Shield Outline
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(52, 36);
+            ctx.lineTo(248, 36);
+            ctx.lineTo(248, 155);
+            ctx.quadraticCurveTo(248, 232, 150, 272);
+            ctx.quadraticCurveTo(52, 232, 52, 155);
+            ctx.closePath();
+
+            const shieldGrad = ctx.createLinearGradient(52, 36, 248, 272);
+            shieldGrad.addColorStop(0, '#1e293b');
+            shieldGrad.addColorStop(0.5, '#0f172a');
+            shieldGrad.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = shieldGrad;
+            ctx.fill();
+
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#fbbf24';
+            ctx.stroke();
+
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(253, 230, 138, 0.55)';
+            ctx.stroke();
+            ctx.restore();
+
+            // 3. Castle Battlements Header inside Shield
+            ctx.fillStyle = '#f59e0b';
+            const merlons = [76, 108, 140, 172, 204];
+            merlons.forEach(mx => {
+                ctx.fillRect(mx, 54, 20, 14);
+            });
+            ctx.fillRect(76, 66, 148, 8);
+
+            // 4. Banner Text: STORTFOLD
+            ctx.fillStyle = '#fde68a';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('STORTFOLD', 150, 96);
+
+            // 5. Giant Golden Clue Number "6" in the Center
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 92px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(245, 158, 11, 0.5)';
+            ctx.shadowBlur = 14;
+            ctx.fillText('6', 150, 156);
+            ctx.shadowBlur = 0;
+
+            // 6. Subtitle & Bumblebee Emblem at Bottom of Shield
+            ctx.fillStyle = '#fcd34d';
+            ctx.font = 'bold 15px sans-serif';
+            ctx.fillText('MONTHS', 150, 210);
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText('CLUE #1', 150, 234);
+
+            // 7. Subtle 3x3 Grid Divider Lines & Piece Numbers (1-8) in Corners
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.28)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(1, 1, size - 2, size - 2);
+
+            for (let idx = 0; idx < 8; idx++) {
+                const r = Math.floor(idx / 3);
+                const col = idx % 3;
+                const x = col * 100 + 14;
+                const y = r * 100 + 18;
+                ctx.fillStyle = 'rgba(253, 230, 138, 0.75)';
+                ctx.font = 'bold 13px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText(String(idx + 1), x, y);
+            }
+
+            masterCrestCanvas = c;
+            return c;
+        }
+
+        // 8 represents the empty slot (bottom-right when solved: [0,1,2,3,4,5,6,7,8])
+        let slidingTiles = [0, 1, 2, 3, 4, 5, 7, 8, 6]; // Near-solved start for quick mobile play
+        let puzzleSolved = false;
+
+        function isPuzzleSolved() {
+            return slidingTiles.every((val, idx) => val === idx);
+        }
+
+        function renderSlidingPuzzle() {
+            const sourceCanvas = buildStortfoldCrestCanvas();
+            const board = document.getElementById('puzzle-board');
+            board.innerHTML = '';
+            const emptyIdx = slidingTiles.indexOf(8);
+            const emptyRow = Math.floor(emptyIdx / 3);
+            const emptyCol = emptyIdx % 3;
+
+            slidingTiles.forEach((tileId, idx) => {
+                const tile = document.createElement('div');
+                const row = Math.floor(idx / 3);
+                const col = idx % 3;
+                const isAdjacent = (Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1;
+
+                if (tileId === 8 && !puzzleSolved) {
+                    tile.className = 'puzzle-tile empty-slot';
+                } else {
+                    tile.className = 'puzzle-tile' + (isAdjacent && !puzzleSolved ? ' movable' : '');
+                    const origCol = tileId % 3;
+                    const origRow = Math.floor(tileId / 3);
+
+                    // Slice exact 100x100 quadrant onto a dedicated tile canvas
+                    const tileCanvas = document.createElement('canvas');
+                    tileCanvas.width = 100;
+                    tileCanvas.height = 100;
+                    const tCtx = tileCanvas.getContext('2d');
+                    tCtx.drawImage(
+                        sourceCanvas,
+                        origCol * 100, origRow * 100, 100, 100,
+                        0, 0, 100, 100
+                    );
+                    tile.appendChild(tileCanvas);
+
+                    if (isAdjacent && !puzzleSolved) {
+                        tile.onclick = () => moveTile(idx, emptyIdx);
+                    }
+                }
+                board.appendChild(tile);
+            });
+
+            const feedback = document.getElementById('puzzle-feedback');
+            if (isPuzzleSolved()) {
+                puzzleSolved = true;
+                feedback.innerHTML = `<span class="text-emerald-400 font-bold">✅ Crest Restored! Secret Clue #1 revealed: 6</span>`;
+            } else {
+                feedback.textContent = "Tap any gold-bordered tile next to the empty space to slide it.";
+            }
+        }
+
+        function updateHubUI() {
+            let solvedCount = 0;
+
+            for (let i = 1; i <= 4; i++) {
+                const clueVal = gameState.unlockedClues[i];
+                const slot = document.getElementById(`clue-slot-${i}`);
+                const card = document.getElementById(`map-card-${i}`);
+                const icon = document.getElementById(`map-icon-${i}`);
+                const status = document.getElementById(`map-status-${i}`);
+                const lock = document.getElementById(`map-lock-${i}`);
+
+                if (clueVal) {
+                    solvedCount++;
+                    // Top HUD Clue Slot
+                    slot.textContent = clueVal;
+                    slot.className = "w-7 h-7 rounded-lg bg-amber-400 border border-amber-200 flex items-center justify-center font-breakout text-xs font-bold text-slate-950 shadow-sm";
+
+                    // Story Map Card Styling
+                    card.className = "w-full relative z-10 flex items-center gap-3.5 p-3 rounded-2xl bg-emerald-950/50 hover:bg-emerald-900/50 border-2 border-emerald-400/60 text-left transition-all cursor-pointer";
+                    icon.className = "w-11 h-11 rounded-xl bg-emerald-400 text-slate-950 font-breakout font-bold text-lg flex items-center justify-center shrink-0 shadow-md";
+                    icon.textContent = "✓";
+                    status.textContent = `Clue: ${clueVal}`;
+                    status.className = "text-[10px] px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 font-bold";
+                    lock.textContent = "✅";
+                } else {
+                    slot.textContent = "?";
+                    slot.className = "w-7 h-7 rounded-lg bg-slate-900 border border-slate-600 flex items-center justify-center font-breakout text-xs font-bold text-slate-500";
+                }
+            }
+
+            document.getElementById('hud-progress').textContent = `${solvedCount}/4`;
+
+            const vaultBtn = document.getElementById('btn-master-vault');
+            const vaultSub = document.getElementById('vault-subtitle');
+            if (solvedCount === 4) {
+                vaultBtn.classList.add('pulse-badge', 'border-amber-400');
+                vaultSub.textContent = "All 4 clues collected! Ready to open!";
+                vaultSub.className = "text-xs text-emerald-400 font-semibold";
+            } else {
+                vaultBtn.classList.remove('pulse-badge');
+                vaultSub.textContent = `${solvedCount}/4 clues collected — open anytime`;
+                vaultSub.className = "text-xs text-slate-400";
+            }
+        }
+
+        function unlockClue(missionNum) {
+            const val = gameState.clueValues[missionNum];
+            gameState.unlockedClues[missionNum] = val;
+            updateHubUI();
+            triggerConfetti();
+
+            const info = gameState.clueDescriptions[missionNum];
+            document.getElementById('modal-clue-char').textContent = val;
+            document.getElementById('modal-clue-title').textContent = info.title;
+            document.getElementById('modal-clue-desc').textContent = info.desc;
+
+            const modal = document.getElementById('clue-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeClueModal() {
+            const modal = document.getElementById('clue-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            openHub();
+        }
+
+        function normalize(str) {
+            return str
+                .toLowerCase()
+                .trim()
+                .replace(/[^a-z0-9\s]/g, "")
+                .replace(/\s+/g, " ");
+        }
+
+        function toggleHint(num) {
+            document.getElementById(`hint-${num}`).classList.toggle('hidden');
+        }
+
+        function triggerConfetti() {
+            const colors = ['#fbbf24', '#34d399', '#f43f5e', '#38bdf8', '#fde047'];
+            for (let i = 0; i < 28; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = Math.random() * 100 + 'vw';
+                piece.style.top = '-12px';
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.animationDelay = (Math.random() * 0.4) + 's';
+                document.body.appendChild(piece);
+                setTimeout(() => piece.remove(), 2800);
+            }
+        }
+
+        /* ==========================================================================
+           4B. MISSION 1 PUZZLE CONTROLS & VERIFICATION
+           ========================================================================== */
+        function moveTile(tileIdx, emptyIdx) {
+            [slidingTiles[tileIdx], slidingTiles[emptyIdx]] = [slidingTiles[emptyIdx], slidingTiles[tileIdx]];
+            if (isPuzzleSolved()) puzzleSolved = true;
+            renderSlidingPuzzle();
+        }
+
+        function shufflePuzzle() {
+            puzzleSolved = false;
+            slidingTiles = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+            // Perform 25 valid random moves so it's always 100% solvable
+            for (let i = 0; i < 25; i++) {
+                const emptyIdx = slidingTiles.indexOf(8);
+                const r = Math.floor(emptyIdx / 3);
+                const c = emptyIdx % 3;
+                const neighbors = [];
+                if (r > 0) neighbors.push(emptyIdx - 3);
+                if (r < 2) neighbors.push(emptyIdx + 3);
+                if (c > 0) neighbors.push(emptyIdx - 1);
+                if (c < 2) neighbors.push(emptyIdx + 1);
+                const pick = neighbors[Math.floor(Math.random() * neighbors.length)];
+                [slidingTiles[emptyIdx], slidingTiles[pick]] = [slidingTiles[pick], slidingTiles[emptyIdx]];
+            }
+            renderSlidingPuzzle();
+        }
+
+        function autoSolvePuzzle() {
+            slidingTiles = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+            puzzleSolved = true;
+            renderSlidingPuzzle();
+        }
+
+        function verifyMission1() {
+            const input = document.getElementById('answer-1');
+            const error = document.getElementById('error-1');
+            const val = normalize(input.value);
+
+            input.classList.remove('shake-error');
+            error.classList.add('hidden');
+
+            const accepted = ["buttered bun", "the buttered bun", "buttered", "bun"];
+            if (accepted.some(ans => val === ans || val.includes("buttered bun"))) {
+                autoSolvePuzzle();
+                unlockClue(1);
+            } else {
+                void input.offsetWidth;
+                input.classList.add('shake-error');
+                error.classList.remove('hidden');
+            }
+        }
+
+        /* ==========================================================================
+           5. MISSION 2: FLASHLIGHT IN THE DARK (WILL'S STUDY)
+           ========================================================================== */
+        function setupFlashlight() {
+            const stage = document.getElementById('flashlight-stage');
+            const mask = document.getElementById('flashlight-mask');
+
+            function updateSpotlight(clientX, clientY) {
+                const rect = stage.getBoundingClientRect();
+                const x = clientX - rect.left;
+                const y = clientY - rect.top;
+                mask.style.background = `radial-gradient(circle 72px at ${x}px ${y}px, transparent 0%, rgba(3, 5, 10, 0.985) 85%)`;
+            }
+
+            stage.addEventListener('mousemove', (e) => updateSpotlight(e.clientX, e.clientY));
+            stage.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) updateSpotlight(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: true });
+            stage.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) updateSpotlight(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: true });
+        }
+
+        function verifyMission2() {
+            const input = document.getElementById('answer-2');
+            const error = document.getElementById('error-2');
+            const val = normalize(input.value);
+
+            input.classList.remove('shake-error');
+            error.classList.add('hidden');
+
+            if (val.includes("mozart")) {
+                unlockClue(2);
+            } else {
+                void input.offsetWidth;
+                input.classList.add('shake-error');
+                error.classList.remove('hidden');
+            }
+        }
+
+        /* ==========================================================================
+           6. MISSION 3: CRYPTEX COMBINATION DIALS (DIGNITAS)
+           ========================================================================== */
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let dialIndexes = [0, 0, 0, 0]; // Starts at A-A-A-A
+
+        function renderCryptexDials() {
+            const container = document.getElementById('cryptex-dials');
+            container.innerHTML = '';
+
+            dialIndexes.forEach((charIdx, idx) => {
+                const dial = document.createElement('div');
+                dial.className = 'cryptex-dial w-14 rounded-2xl flex flex-col items-center overflow-hidden';
+
+                const upBtn = document.createElement('button');
+                upBtn.className = 'w-full py-1.5 text-amber-400 hover:bg-slate-800 active:bg-slate-700 text-xs font-bold cursor-pointer';
+                upBtn.textContent = '▲';
+                upBtn.onclick = () => spinDial(idx, -1);
+
+                const charBox = document.createElement('div');
+                charBox.className = 'py-2 font-breakout text-2xl font-bold text-white select-none';
+                charBox.textContent = letters[charIdx];
+
+                const downBtn = document.createElement('button');
+                downBtn.className = 'w-full py-1.5 text-amber-400 hover:bg-slate-800 active:bg-slate-700 text-xs font-bold cursor-pointer';
+                downBtn.textContent = '▼';
+                downBtn.onclick = () => spinDial(idx, 1);
+
+                dial.appendChild(upBtn);
+                dial.appendChild(charBox);
+                dial.appendChild(downBtn);
+                container.appendChild(dial);
+            });
+        }
+
+        function spinDial(dialIdx, step) {
+            dialIndexes[dialIdx] = (dialIndexes[dialIdx] + step + letters.length) % letters.length;
+            renderCryptexDials();
+        }
+
+        function verifyMission3() {
+            const dialsEl = document.getElementById('cryptex-dials');
+            const cryptexFeedback = document.getElementById('cryptex-feedback');
+            const input = document.getElementById('answer-3');
+            const error = document.getElementById('error-3');
+
+            dialsEl.classList.remove('shake-error');
+            input.classList.remove('shake-error');
+            error.classList.add('hidden');
+
+            const dialCode = dialIndexes.map(i => letters[i]).join('');
+            const countryVal = normalize(input.value);
+
+            const isDialValid = (dialCode === 'DIGN');
+            const isCountryValid = countryVal.includes('switzerland');
+
+            if (!isDialValid) {
+                void dialsEl.offsetWidth;
+                dialsEl.classList.add('shake-error');
+                cryptexFeedback.innerHTML = `<span class="text-red-400 font-semibold">Dial reads "${dialCode}" — set it to D-I-G-N!</span>`;
+                return;
+            } else {
+                cryptexFeedback.innerHTML = `<span class="text-emerald-400 font-semibold">✅ Cryptex aligned: D-I-G-N!</span>`;
+            }
+
+            if (!isCountryValid) {
+                void input.offsetWidth;
+                input.classList.add('shake-error');
+                error.classList.remove('hidden');
+                return;
+            }
+
+            unlockClue(3);
+        }
+
+        /* ==========================================================================
+           7. MISSION 4: SCRATCH-OFF WAX SEAL (PARIS ENVELOPE)
+           ========================================================================== */
+        let scratchReady = false;
+
+        function initScratchCanvas() {
+            const canvas = document.getElementById('scratch-canvas');
+            const wrapper = document.getElementById('scratch-wrapper');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = wrapper.offsetWidth;
+            canvas.height = wrapper.offsetHeight;
+
+            // Rich Gold Foil Gradient
+            const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            grad.addColorStop(0, '#b45309');
+            grad.addColorStop(0.5, '#fde68a');
+            grad.addColorStop(1, '#d97706');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Instruction Text on Gold Foil
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 14px Fredoka, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('✨ SCRATCH OFF THE GOLD FOIL SEAL ✨', canvas.width / 2, canvas.height / 2 + 5);
+
+            if (scratchReady) return;
+            scratchReady = true;
+
+            let scratching = false;
+
+            function scratchAt(clientX, clientY) {
+                const rect = canvas.getBoundingClientRect();
+                const x = clientX - rect.left;
+                const y = clientY - rect.top;
+
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                ctx.arc(x, y, 25, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            canvas.addEventListener('mousedown', (e) => { scratching = true; scratchAt(e.clientX, e.clientY); });
+            canvas.addEventListener('mousemove', (e) => { if (scratching) scratchAt(e.clientX, e.clientY); });
+            window.addEventListener('mouseup', () => { scratching = false; });
+
+            canvas.addEventListener('touchstart', (e) => {
+                scratching = true;
+                if (e.touches.length > 0) scratchAt(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: true });
+
+            canvas.addEventListener('touchmove', (e) => {
+                if (scratching && e.touches.length > 0) {
+                    scratchAt(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: true });
+
+            canvas.addEventListener('touchend', () => { scratching = false; });
+        }
+
+        function verifyMission4() {
+            const input = document.getElementById('answer-4');
+            const error = document.getElementById('error-4');
+            const val = normalize(input.value);
+
+            input.classList.remove('shake-error');
+            error.classList.add('hidden');
+
+            if (val.includes('artisan') || val.includes('parfumeur')) {
+                unlockClue(4);
+            } else {
+                void input.offsetWidth;
+                input.classList.add('shake-error');
+                error.classList.remove('hidden');
+            }
+        }
+
+        /* ==========================================================================
+           8. MASTER LOCK VAULT & FINALE
+           ========================================================================== */
+        function openMasterLock() {
+            setSceneBg(4);
+            document.getElementById('master-error').classList.add('hidden');
+            showScreen('screen-master');
+        }
+
+        function autoFillMasterCode() {
+            for (let i = 1; i <= 4; i++) {
+                const box = document.getElementById(`m-code-${i}`);
+                box.value = gameState.unlockedClues[i] || '';
+            }
+        }
+
+        function verifyMasterLock() {
+            const container = document.getElementById('master-inputs');
+            const error = document.getElementById('master-error');
+
+            container.classList.remove('shake-error');
+            error.classList.add('hidden');
+
+            const c1 = normalize(document.getElementById('m-code-1').value).toUpperCase();
+            const c2 = normalize(document.getElementById('m-code-2').value).toUpperCase();
+            const c3 = normalize(document.getElementById('m-code-3').value).toUpperCase();
+            const c4 = normalize(document.getElementById('m-code-4').value).toUpperCase();
+
+            if (c1 === '6' && c2 === 'B' && c3 === '2' && c4 === '7') {
+                triggerConfetti();
+                showScreen('screen-finale');
+            } else {
+                void container.offsetWidth;
+                container.classList.add('shake-error');
+                error.classList.remove('hidden');
+            }
+        }
+
+        function resetFullGame() {
+            gameState.unlockedClues = { 1: null, 2: null, 3: null, 4: null };
+
+            for (let i = 1; i <= 4; i++) {
+                const ans = document.getElementById(`answer-${i}`);
+                const err = document.getElementById(`error-${i}`);
+                const hint = document.getElementById(`hint-${i}`);
+                const mCode = document.getElementById(`m-code-${i}`);
+
+                if (ans) ans.value = '';
+                if (err) err.classList.add('hidden');
+                if (hint) hint.classList.add('hidden');
+                if (mCode) mCode.value = '';
+            }
+
+            // Reset Mission 1 Puzzle
+            slidingTiles = [0, 1, 2, 3, 4, 5, 7, 8, 6];
+            puzzleSolved = false;
+            renderSlidingPuzzle();
+
+            // Reset Mission 3 Cryptex
+            dialIndexes = [0, 0, 0, 0];
+            renderCryptexDials();
+            document.getElementById('cryptex-feedback').textContent = "Tap ▲ or ▼ to align the 4-letter code.";
+
+            // Reset Mission 4 Scratch Foil
+            scratchReady = false;
+
+            openHub();
+        }
+
+        /* ==========================================================================
+           9. INITIALIZATION ON WINDOW LOAD
+           ========================================================================== */
+        window.onload = function () {
+            setSceneBg('hub');
+            updateHubUI();
+            renderSlidingPuzzle();
+            setupFlashlight();
+            renderCryptexDials();
+
+            // Auto-advance cursor on Master Lock code boxes
+            for (let i = 1; i <= 4; i++) {
+                const box = document.getElementById(`m-code-${i}`);
+                box.addEventListener('input', () => {
+                    if (box.value.length === 1 && i < 4) {
+                        document.getElementById(`m-code-${i + 1}`).focus();
+                    }
+                });
+            }
+
+            // Allow Enter key submission on text inputs
+            [1, 2, 3, 4].forEach(num => {
+                const input = document.getElementById(`answer-${num}`);
+                if (input) {
+                    input.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (num === 1) verifyMission1();
+                            if (num === 2) verifyMission2();
+                            if (num === 3) verifyMission3();
+                            if (num === 4) verifyMission4();
+                        }
+                    });
+                }
+            });
+        };
+    </script>
+</body>
 </html>
