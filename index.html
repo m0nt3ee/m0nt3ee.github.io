@@ -808,7 +808,7 @@
                     <label for="answer-4" class="block text-xs sm:text-sm font-semibold text-amber-200 mb-1.5">
                         2. Story Check: What is the name of the Parisian perfumery/café mentioned in Will's letter?
                     </label>
-                    <input type="text" id="answer-4" placeholder="Type name from summary (e.g. L'Artisan)..." autocomplete="off"
+                    <input type="text" id="answer-4" placeholder="Type name from summary..." autocomplete="off"
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-400">
                     <p id="error-4" class="hidden text-red-400 text-xs mt-1.5 font-medium">
                         ⚠️ Check the first paragraph of the Story Summary!
@@ -885,7 +885,7 @@
                 </div>
 
                 <div class="font-serif-story text-slate-800 text-sm sm:text-base leading-relaxed space-y-3 italic mb-5">
-                    <p>“Dearest Lou,</p>
+                    <p>“Dearest Louisa,</p>
                     <p>
                         By the time you read this, you will be sitting at Café Marquis on Place Dauphine, with a warm croissant and coffee before you. Go to <strong>L’Artisan Parfumeur</strong> on Rue des Francs-Bourgeois and try the scent called <em>Papillons Extrême</em>.
                     </p>
@@ -946,23 +946,26 @@
 
     <script>
         /* ==========================================================================
-           1. CUSTOM ILLUSTRATED SVG BACKGROUNDS FOR EVERY SCENE
+           1. CUSTOM MOVIE PHOTO BACKGROUNDS FOR EVERY SCENE (WITH FALLBACK)
            ========================================================================== */
         const scenicBackgrounds = {
-            // Story Map Hub: Warm English countryside & golden bumblebee motif
-            hub: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><linearGradient id='gHub' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%231e293b'/><stop offset='55%' stop-color='%230f172a'/><stop offset='100%' stop-color='%231c1917'/></linearGradient></defs><rect width='800' height='1200' fill='url(%23gHub)'/><circle cx='400' cy='280' r='260' fill='%23f59e0b' opacity='0.09'/><path d='M0 980 Q220 900 450 960 T800 920 L800 1200 L0 1200 Z' fill='%23064e3b' opacity='0.45'/></svg>")`,
+            // Story Map Hub
+            hub: `url("https://paradoks.net.pl/image_files/text/31263/3.jpg"), linear-gradient(135deg, #1e293b 0%, #0f172a 100%)`,
             
-            // Mission 1: Stortfold Castle in rain & English gardens
-            1: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><linearGradient id='sky1' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%230f172a'/><stop offset='55%' stop-color='%23334155'/><stop offset='100%' stop-color='%23064e3b'/></linearGradient></defs><rect width='800' height='1200' fill='url(%23sky1)'/><path d='M0 860 Q260 760 520 845 T800 810 L800 1200 L0 1200 Z' fill='%23064e3b' opacity='0.75'/><path d='M0 960 Q400 870 800 950 L800 1200 L0 1200 Z' fill='%23022c22'/><g fill='%230f172a' opacity='0.88'><rect x='250' y='550' width='300' height='270'/><rect x='220' y='480' width='68' height='340'/><rect x='512' y='480' width='68' height='340'/><polygon points='220,480 254,415 288,480'/><polygon points='512,480 546,415 580,480'/><rect x='362' y='510' width='76' height='310'/></g><g fill='%23fbbf24' opacity='0.6'><rect x='295' y='605' width='24' height='38' rx='12'/><rect x='388' y='575' width='24' height='38' rx='12'/><rect x='480' y='605' width='24' height='38' rx='12'/></g><g stroke='%2394a3b8' stroke-width='2' opacity='0.22'><line x1='140' y1='120' x2='120' y2='220'/><line x1='320' y1='80' x2='300' y2='180'/><line x1='620' y1='150' x2='600' y2='250'/><line x1='490' y1='260' x2='470' y2='360'/></g></svg>")`,
+            // Mission 1: Act I
+            1: `url("https://zpopk.pl/wp-content/uploads/2016/06/mebeforeyou2.jpg"), linear-gradient(135deg, #0f172a 0%, #064e3b 100%)`,
             
-            // Mission 2: Classical Concert Hall with golden spotlights
-            2: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><radialGradient id='hall2' cx='50%' cy='28%' r='70%'><stop offset='0%' stop-color='%2392400e'/><stop offset='55%' stop-color='%234c0519'/><stop offset='100%' stop-color='%23090d16'/></radialGradient></defs><rect width='800' height='1200' fill='url(%23hall2)'/><polygon points='400,60 150,900 650,900' fill='%23fbbf24' opacity='0.11'/><circle cx='400' cy='220' r='170' fill='%23f59e0b' opacity='0.18'/><path d='M0 0 Q190 420 0 880 Z' fill='%23881337' opacity='0.65'/><path d='M800 0 Q610 420 800 880 Z' fill='%23881337' opacity='0.65'/></svg>")`,
+            // Mission 2: Act II
+            2: `url("https://img23.powernet.pl/mm/825/0/image_files/text/31263/4.jpg"), linear-gradient(135deg, #92400e 0%, #4c0519 100%)`,
             
-            // Mission 3: Mauritius tropical sunset beach
-            3: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><linearGradient id='sun3' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%231e1b4b'/><stop offset='38%' stop-color='%23be123c'/><stop offset='68%' stop-color='%23f59e0b'/><stop offset='100%' stop-color='%230e7490'/></linearGradient></defs><rect width='800' height='1200' fill='url(%23sun3)'/><circle cx='400' cy='670' r='135' fill='%23fef08a' opacity='0.88'/><rect x='0' y='715' width='800' height='485' fill='%23083344' opacity='0.88'/><ellipse cx='400' cy='760' rx='190' ry='15' fill='%23fde047' opacity='0.45'/><path d='M55 1200 Q110 850 185 645' stroke='%23020617' stroke-width='22' fill='none'/><path d='M185 645 Q90 605 40 665 M185 645 Q140 565 80 575 M185 645 Q255 575 305 625 M185 645 Q265 635 295 705' stroke='%23020617' stroke-width='14' fill='none'/></svg>")`,
+            // Mission 3: Act III
+            3: `url("https://i.iplsc.com/-/00063I599QXHMQRP-C461.webp"), linear-gradient(135deg, #1e1b4b 0%, #0e7490 100%)`,
             
-            // Mission 4 & Master Lock: Paris Café & Eiffel Tower at twilight
-            4: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 1200'><defs><linearGradient id='paris4' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='%230f172a'/><stop offset='55%' stop-color='%23312e81'/><stop offset='100%' stop-color='%231e1b4b'/></linearGradient></defs><rect width='800' height='1200' fill='url(%23paris4)'/><circle cx='630' cy='210' r='44' fill='%23fef9c3' opacity='0.85'/><g fill='%23090d16' opacity='0.92'><polygon points='392,270 408,270 446,680 525,980 478,980 426,780 374,780 322,980 275,980 354,680'/><rect x='348' y='670' width='104' height='14'/><rect x='368' y='510' width='64' height='10'/></g><circle cx='400' cy='460' r='165' fill='%23fbbf24' opacity='0.14'/></svg>")`
+            // Mission 4: Act IV
+            4: `url("https://www.commonsensemedia.org/sites/default/files/styles/ratio_16_9_large/public/screenshots/csm-movie/me-before-you-ss3.jpg"), linear-gradient(135deg, #0f172a 0%, #312e81 100%)`,
+
+            // Finale Screen
+            finale: `url("https://i.ytimg.com/vi/uEv57GJzHMw/maxresdefault.jpg"), linear-gradient(135deg, #1e1b4b 0%, #78350f 100%)`
         };
 
         /* ==========================================================================
@@ -1479,10 +1482,10 @@
             if (!isDialValid) {
                 void dialsEl.offsetWidth;
                 dialsEl.classList.add('shake-error');
-                cryptexFeedback.innerHTML = `<span class="text-red-400 font-semibold">Dial reads "${dialCode}" — set it to D-I-G-N!</span>`;
+                cryptexFeedback.innerHTML = `<span class="text-red-400 font-semibold">Dial reads "${dialCode}" — check the Story Summary for the 4-letter clinic code!</span>`;
                 return;
             } else {
-                cryptexFeedback.innerHTML = `<span class="text-emerald-400 font-semibold">✅ Cryptex aligned: D-I-G-N!</span>`;
+                cryptexFeedback.innerHTML = `<span class="text-emerald-400 font-semibold">✅ Cryptex aligned!</span>`;
             }
 
             if (!isCountryValid) {
@@ -1603,6 +1606,7 @@
 
             if (c1 === '6' && c2 === 'B' && c3 === '2' && c4 === '7') {
                 triggerConfetti();
+                setSceneBg('finale');
                 showScreen('screen-finale');
             } else {
                 void container.offsetWidth;
